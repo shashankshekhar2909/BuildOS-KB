@@ -176,10 +176,12 @@ export default function ProjectsPage() {
         <div className="border border-border bg-surface p-12 text-center">
           <div className="text-muted text-sm mb-3">No projects found.</div>
           <SyncAuthModal onConfirm={() => api.triggerFullIndex()}>
-            {(trigger) => (
+            {(trigger, disabled, reason) => (
               <button
                 onClick={trigger}
-                className="text-accent text-sm bg-transparent border border-accent/30 px-4 py-1.5 cursor-pointer hover:bg-accent/10 transition-colors"
+                disabled={disabled}
+                title={reason ?? undefined}
+                className="text-accent text-sm bg-transparent border border-accent/30 px-4 py-1.5 cursor-pointer hover:bg-accent/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 Trigger index
               </button>

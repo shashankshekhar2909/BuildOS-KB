@@ -206,10 +206,12 @@ export default function DashboardPage() {
           </div>
 
           <SyncAuthModal onConfirm={() => api.triggerFullIndex()}>
-            {(trigger) => (
+            {(trigger, disabled, reason) => (
               <button
                 onClick={trigger}
-                className="mt-5 w-full py-2.5 text-xs font-semibold text-white transition-opacity hover:opacity-90 border-0 cursor-pointer"
+                disabled={disabled}
+                title={reason ?? undefined}
+                className="mt-5 w-full py-2.5 text-xs font-semibold text-white transition-opacity border-0 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90"
                 style={{ background: "linear-gradient(to right, #4589ff, #0f62fe)" }}
               >
                 Trigger Full Re-index

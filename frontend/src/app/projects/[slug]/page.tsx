@@ -69,10 +69,12 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ slug: 
           </div>
 
           <SyncAuthModal onConfirm={() => api.reindexProject(slug).then(() => alert("Re-index queued!"))}>
-            {(trigger) => (
+            {(trigger, disabled, reason) => (
               <button
                 onClick={trigger}
-                className="px-4 py-2 text-xs font-semibold bg-accent text-white border-0 cursor-pointer hover:opacity-90 transition-opacity shrink-0"
+                disabled={disabled}
+                title={reason ?? undefined}
+                className="px-4 py-2 text-xs font-semibold bg-accent text-white border-0 cursor-pointer hover:opacity-90 transition-opacity shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 ↺ Re-index
               </button>
@@ -231,10 +233,12 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ slug: 
               <div className="text-text font-semibold mb-2">No OKF generated yet</div>
               <div className="text-muted text-sm mb-5">Trigger a re-index to generate the Operational Knowledge File using AI.</div>
               <SyncAuthModal onConfirm={() => api.reindexProject(slug).then(() => alert("Re-index queued!"))}>
-                {(trigger) => (
+                {(trigger, disabled, reason) => (
                   <button
                     onClick={trigger}
-                    className="px-5 py-2 bg-accent text-white text-sm font-semibold border-0 cursor-pointer hover:opacity-90 transition-opacity"
+                    disabled={disabled}
+                    title={reason ?? undefined}
+                    className="px-5 py-2 bg-accent text-white text-sm font-semibold border-0 cursor-pointer hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     ↺ Trigger re-index
                   </button>
