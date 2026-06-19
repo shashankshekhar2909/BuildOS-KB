@@ -1,0 +1,71 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg: #161616;
+  --color-surface: #262626;
+  --color-surface-2: #393939;
+  --color-border: #393939;
+  --color-border-2: #525252;
+  --color-text: #f4f4f4;
+  --color-muted: #c6c6c6;
+  --color-subtle: #6f6f6f;
+  --color-accent: #4589ff;
+  --color-accent-hover: #0f62fe;
+  --color-success: #42be65;
+  --color-error: #ff8389;
+  --color-warning: #f1c21b;
+
+  --font-sans: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
+  --font-mono: 'IBM Plex Mono', 'Fira Code', monospace;
+}
+
+/* Keep Carbon CSS vars for any legacy components */
+:root {
+  --cds-background: #161616;
+  --cds-layer-01: #262626;
+  --cds-layer-02: #393939;
+  --cds-text-primary: #f4f4f4;
+  --cds-text-secondary: #c6c6c6;
+  --cds-text-helper: #6f6f6f;
+  --cds-text-placeholder: #6f6f6f;
+  --cds-border-subtle-01: #393939;
+  --cds-border-subtle-02: #525252;
+  --cds-border-strong-01: #6f6f6f;
+  --cds-field-01: #262626;
+  --cds-interactive: #4589ff;
+  --cds-link-primary: #78a9ff;
+  --cds-button-primary: #0f62fe;
+  --cds-button-secondary: #393939;
+  --cds-text-on-color: #ffffff;
+  --cds-support-success: #42be65;
+  --cds-support-error: #ff8389;
+  --cds-focus: #4589ff;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  background-color: #161616;
+  color: #f4f4f4;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: inherit; text-decoration: none; }
+
+.page-container {
+  padding: 2rem;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+mark, b {
+  background: rgba(78, 137, 255, 0.2);
+  color: #78a9ff;
+  font-weight: normal;
+}

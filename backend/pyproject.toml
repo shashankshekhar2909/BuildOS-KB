@@ -1,0 +1,60 @@
+[project]
+name = "buildos-kb"
+version = "0.1.0"
+description = "BuildOS Knowledge Hub — self-hosted AI memory for your projects"
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    "sqlalchemy[asyncio]>=2.0.36",
+    "asyncpg>=0.30.0",
+    "alembic>=1.14.0",
+    "pydantic>=2.10.0",
+    "pydantic-settings>=2.7.0",
+    "arq>=0.26.1",
+    "redis[hiredis]>=5.2.0",
+    "pgvector>=0.3.5",
+    "tiktoken>=0.8.0",
+    "litellm>=1.55.0",
+    "python-multipart>=0.0.19",
+    "structlog>=24.4.0",
+    "mcp>=1.2.0",
+    "watchdog>=6.0.0",
+    "python-dotenv>=1.0.1",
+    "httpx>=0.28.0",
+    "google-auth>=2.37.0",
+    "PyJWT>=2.10.0",
+    "requests>=2.32.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3.0",
+    "pytest-asyncio>=0.25.0",
+    "pytest-cov>=6.0.0",
+    "ruff>=0.8.0",
+    "mypy>=1.13.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+[tool.ruff]
+target-version = "py313"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
