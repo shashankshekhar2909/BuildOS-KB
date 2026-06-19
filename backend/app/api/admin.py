@@ -1,3 +1,5 @@
+import json
+import uuid
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,7 +11,7 @@ from app.models.document import Document
 from app.models.relationship import Relationship
 from app.schemas.project import HealthOut, ProjectStatsOut, ReindexResponse
 from app.config import settings
-import uuid
+from app.redis_client import get_redis
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -80,6 +82,26 @@ async def get_stats(db: AsyncSession = Depends(get_db)):
         embeddings=emb_count,
         relationships=rel_count,
     )
+
+
+@router.get("/sync-activity")
+async def get_sync_activity():
+    redis = await get_redis()
+    keys = []
+    async for key in redis.scan_iter("buildos:sync:*"):
+        keys.append(key)
+    if not keys:
+        return {"activity": []}
+    values = await redis.mget(*keys)
+    activity = []
+    for raw in values:
+        if raw:
+            try:
+                activity.append(json.loads(raw))
+            except Exception:
+                pass
+    activity.sort(key=lambda x: x.get("ts", 0), reverse=True)
+    return {"activity": activity[:20]}
 
 
 class IndexRequest(BaseModel):

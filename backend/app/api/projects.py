@@ -1,3 +1,5 @@
+import json
+import uuid
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -5,12 +7,11 @@ from sqlalchemy import select, func
 from app.api.deps import get_db, get_arq_pool, get_current_user
 from app.schemas.user import CurrentUser
 from app.models.project import Project
-
 from app.models.document import Document
 from app.models.technology import ProjectTechnology, Technology
 from app.schemas.project import ProjectOut, ProjectListOut, ReindexResponse
 from app.schemas.document import DocumentListOut, DocumentOut
-import uuid
+from app.redis_client import get_redis
 
 router = APIRouter(prefix="/projects", tags=["projects"])
 
@@ -155,6 +156,21 @@ async def get_project_okf(slug: str, db: AsyncSession = Depends(get_db)):
         "overridden": project.okf_overridden,
         "generated_at": okf_doc.updated_at.isoformat() if okf_doc else None,
     }
+
+
+@router.get("/{slug}/sync-status")
+async def get_sync_status(slug: str, db: AsyncSession = Depends(get_db)):
+    stmt = select(Project).where(Project.slug == slug)
+    result = await db.execute(stmt)
+    project = result.scalar_one_or_none()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    redis = await get_redis()
+    raw = await redis.get(f"buildos:sync:{project.id}")
+    if not raw:
+        return {"stage": "idle", "msg": "", "ts": None,
+                "project_name": project.name, "project_slug": slug}
+    return json.loads(raw)
 
 
 class ReindexRequest(BaseModel):

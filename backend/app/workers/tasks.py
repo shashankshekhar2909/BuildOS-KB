@@ -1,4 +1,5 @@
 import json
+import time
 import hashlib
 from uuid import UUID
 from datetime import datetime
@@ -13,6 +14,29 @@ from app.services.embedding import EmbeddingService
 import structlog
 
 logger = structlog.get_logger()
+
+SYNC_STATUS_TTL = 3600  # 1 hour
+
+
+async def _set_sync_status(
+    redis,
+    project_id: str,
+    stage: str,
+    msg: str,
+    project_name: str = "",
+    project_slug: str = "",
+) -> None:
+    await redis.set(
+        f"buildos:sync:{project_id}",
+        json.dumps({
+            "stage": stage,
+            "msg": msg,
+            "ts": time.time(),
+            "project_name": project_name,
+            "project_slug": project_slug,
+        }),
+        ex=SYNC_STATUS_TTL,
+    )
 
 
 async def _dedup_enqueue(redis, fn_name: str, **kwargs) -> bool:
@@ -59,20 +83,33 @@ async def extract_project(ctx: dict, project_id: str, model: str | None = None) 
         if not project:
             return {"error": "project_not_found"}
 
+        await _set_sync_status(redis, project_id, "extracting", "Reading project files…",
+                               project_name=project.name, project_slug=project.slug)
+
         service = ExtractionService(db)
         processed, changed = await service.extract_project(project)
 
         project.last_indexed_at = datetime.utcnow()
         await db.commit()
 
+        p_name, p_slug = project.name, project.slug
+
     if changed > 0:
+        await _set_sync_status(redis, project_id, "queuing_okf",
+                               f"Extracted {processed} docs — queuing OKF + embeddings…",
+                               project_name=p_name, project_slug=p_slug)
         await _dedup_enqueue(redis, "generate_okf", project_id=project_id, model=model)
         async with AsyncSessionLocal() as db:
             stmt = select(Document).where(Document.project_id == UUID(project_id))
             result = await db.execute(stmt)
             docs = result.scalars().all()
             for doc in docs:
-                await _dedup_enqueue(redis, "embed_document", document_id=str(doc.id))
+                await _dedup_enqueue(redis, "embed_document",
+                                     document_id=str(doc.id), project_id=project_id)
+    else:
+        await _set_sync_status(redis, project_id, "done",
+                               f"No changes — {processed} docs already up to date",
+                               project_name=p_name, project_slug=p_slug)
 
     logger.info("extract_project_done", project_id=project_id, processed=processed, changed=changed)
     return {"processed": processed, "changed": changed}
@@ -80,6 +117,7 @@ async def extract_project(ctx: dict, project_id: str, model: str | None = None) 
 
 async def generate_okf(ctx: dict, project_id: str, model: str | None = None) -> dict:
     logger.info("generate_okf_start", project_id=project_id, model=model)
+    redis = ctx["redis"]
 
     async with AsyncSessionLocal() as db:
         stmt = select(Project).where(Project.id == UUID(project_id))
@@ -89,17 +127,27 @@ async def generate_okf(ctx: dict, project_id: str, model: str | None = None) -> 
         if not project:
             return {"error": "project_not_found"}
 
+        await _set_sync_status(redis, project_id, "generating_okf",
+                               f"Generating OKF with {model or 'default model'}…",
+                               project_name=project.name, project_slug=project.slug)
+
         service = OKFService(db)
         content = await service.generate(project, model=model)
         await db.commit()
 
+        p_name, p_slug = project.name, project.slug
+
     status = "generated" if content else "skipped"
+    await _set_sync_status(redis, project_id, "okf_done",
+                           "OKF generated — embeddings running…" if status == "generated" else "OKF skipped (no changes)",
+                           project_name=p_name, project_slug=p_slug)
     logger.info("generate_okf_done", project_id=project_id, status=status, model=model)
     return {"status": status}
 
 
-async def embed_document(ctx: dict, document_id: str) -> dict:
+async def embed_document(ctx: dict, document_id: str, project_id: str | None = None) -> dict:
     logger.info("embed_document_start", document_id=document_id)
+    redis = ctx["redis"]
 
     async with AsyncSessionLocal() as db:
         stmt = select(Document).where(Document.id == UUID(document_id))
@@ -108,6 +156,10 @@ async def embed_document(ctx: dict, document_id: str) -> dict:
 
         if not doc or not doc.content:
             return {"status": "skipped", "reason": "no content"}
+
+        pid = project_id or str(doc.project_id)
+        await _set_sync_status(redis, pid, "embedding",
+                               f"Embedding {doc.title}…")
 
         service = EmbeddingService(db)
         chunks = service.chunk_text(doc.content)
@@ -155,5 +207,7 @@ async def embed_document(ctx: dict, document_id: str) -> dict:
         )
         await db.commit()
 
+    await _set_sync_status(redis, pid, "done",
+                           f"Done — {len(chunks)} chunks embedded ✓")
     logger.info("embed_document_done", document_id=document_id, chunks=len(chunks))
     return {"status": "embedded", "chunks": len(chunks)}

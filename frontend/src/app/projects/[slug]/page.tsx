@@ -1,9 +1,10 @@
 "use client";
-import { useQuery } from "@tanstack/react-query";
-import { useState, use } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState, use, useCallback } from "react";
 import { api } from "@/lib/api";
 import { SyncAuthModal } from "@/components/SyncAuthModal";
 import { ModelSelector } from "@/components/ModelSelector";
+import { SyncStatusPanel } from "@/components/SyncStatusPanel";
 import Link from "next/link";
 
 const TABS = ["Overview", "Documents", "OKF"] as const;
@@ -14,6 +15,19 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ slug: 
   const [tab, setTab] = useState<Tab>("Overview");
   const [expandedDoc, setExpandedDoc] = useState<string | null>(null);
   const [selectedModel, setSelectedModel] = useState("");
+  const [syncing, setSyncing] = useState(false);
+  const queryClient = useQueryClient();
+
+  const handleReindex = useCallback(async (model?: string) => {
+    await api.reindexProject(slug, model);
+    setSyncing(true);
+  }, [slug]);
+
+  const handleSyncDone = useCallback(() => {
+    setSyncing(false);
+    queryClient.invalidateQueries({ queryKey: ["project", slug] });
+    queryClient.invalidateQueries({ queryKey: ["project-okf", slug] });
+  }, [slug, queryClient]);
 
   const { data: project, isLoading } = useQuery({
     queryKey: ["project", slug],
@@ -72,15 +86,15 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ slug: 
 
           <div className="flex items-center gap-2 shrink-0">
             <ModelSelector value={selectedModel} onChange={setSelectedModel} />
-            <SyncAuthModal onConfirm={() => api.reindexProject(slug, selectedModel || undefined).then(() => alert("Re-index queued!"))}>
+            <SyncAuthModal onConfirm={() => handleReindex(selectedModel || undefined)}>
               {(trigger, disabled, reason) => (
                 <button
                   onClick={trigger}
-                  disabled={disabled}
+                  disabled={disabled || syncing}
                   title={reason ?? undefined}
                   className="px-4 py-2 text-xs font-semibold bg-accent text-white border-0 cursor-pointer hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
                 >
-                  ↺ Re-index
+                  {syncing ? "Syncing…" : "↺ Re-index"}
                 </button>
               )}
             </SyncAuthModal>
@@ -108,6 +122,8 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ slug: 
           )}
         </div>
       </div>
+
+      <SyncStatusPanel slug={slug} active={syncing} onDone={handleSyncDone} />
 
       {/* Tabs */}
       <div className="flex border-b border-border mb-6 gap-0">
@@ -239,15 +255,15 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ slug: 
               <div className="text-muted text-sm mb-5">Trigger a re-index to generate the Operational Knowledge File using AI.</div>
               <div className="flex items-center gap-2 justify-center">
                 <ModelSelector value={selectedModel} onChange={setSelectedModel} />
-                <SyncAuthModal onConfirm={() => api.reindexProject(slug, selectedModel || undefined).then(() => alert("Re-index queued!"))}>
+                <SyncAuthModal onConfirm={() => handleReindex(selectedModel || undefined)}>
                   {(trigger, disabled, reason) => (
                     <button
                       onClick={trigger}
-                      disabled={disabled}
+                      disabled={disabled || syncing}
                       title={reason ?? undefined}
                       className="px-5 py-2 bg-accent text-white text-sm font-semibold border-0 cursor-pointer hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
                     >
-                      ↺ Trigger re-index
+                      {syncing ? "Syncing…" : "↺ Trigger re-index"}
                     </button>
                   )}
                 </SyncAuthModal>

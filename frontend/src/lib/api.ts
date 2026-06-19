@@ -57,6 +57,12 @@ export const api = {
   getProjectDocuments: (slug: string) =>
     fetchJSON<DocumentListOut>(`/api/projects/${slug}/documents`),
 
+  getSyncStatus: (slug: string) =>
+    fetchJSON<SyncStatus>(`/api/projects/${slug}/sync-status`),
+
+  getSyncActivity: () =>
+    fetchJSON<{ activity: SyncStatus[] }>(`/api/admin/sync-activity`),
+
   reindexProject: (slug: string, model?: string) =>
     fetchJSON<ReindexResponse>(`/api/projects/${slug}/reindex`, {
       method: "POST",
@@ -157,6 +163,14 @@ export interface ReindexResponse {
   job_id: string;
   status: string;
   message: string;
+}
+
+export interface SyncStatus {
+  stage: "idle" | "extracting" | "queuing_okf" | "generating_okf" | "okf_done" | "embedding" | "done" | "error";
+  msg: string;
+  ts: number | null;
+  project_name: string;
+  project_slug: string;
 }
 
 export interface ModelOption {
