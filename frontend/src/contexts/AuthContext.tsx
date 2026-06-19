@@ -5,7 +5,11 @@ import { loginWithGoogle, logoutFirebase } from "@/lib/firebase";
 function getBase(): string {
   if (process.env.NEXT_PUBLIC_API_URL) return process.env.NEXT_PUBLIC_API_URL;
   if (typeof window !== "undefined") {
-    return `${window.location.protocol}//${window.location.hostname}:8010`;
+    const { protocol, hostname, port } = window.location;
+    if (protocol === "https:" || !port || port === "80" || port === "443") {
+      return `${protocol}//${hostname}`;
+    }
+    return `${protocol}//${hostname}:8010`;
   }
   return "http://localhost:8010";
 }
