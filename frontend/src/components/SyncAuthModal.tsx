@@ -9,19 +9,20 @@ interface SyncAuthModalProps {
 }
 
 export function SyncAuthModal({ onConfirm, children }: SyncAuthModalProps) {
-  const { user, login } = useAuth();
+  const { user, loading: authLoading, login } = useAuth();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const trigger = useCallback(() => {
+    if (authLoading) return; // wait for session restore
     if (user) {
       onConfirm();
     } else {
       setOpen(true);
       setError(null);
     }
-  }, [user, onConfirm]);
+  }, [user, authLoading, onConfirm]);
 
   const handleLogin = useCallback(async () => {
     setLoading(true);
