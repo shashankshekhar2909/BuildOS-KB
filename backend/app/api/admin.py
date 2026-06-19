@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, text
 from app.api.deps import get_db, get_redis_dep, get_arq_pool, get_current_user
@@ -7,6 +8,7 @@ from app.models.project import Project
 from app.models.document import Document
 from app.models.relationship import Relationship
 from app.schemas.project import HealthOut, ProjectStatsOut, ReindexResponse
+from app.config import settings
 import uuid
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -80,10 +82,44 @@ async def get_stats(db: AsyncSession = Depends(get_db)):
     )
 
 
+class IndexRequest(BaseModel):
+    model: str | None = None
+
+
+@router.get("/models")
+async def get_available_models():
+    models = []
+    if settings.GROQ_API_KEY:
+        models += [
+            {"id": "groq/llama-3.3-70b-versatile", "provider": "Groq", "label": "Llama 3.3 70B · fast"},
+            {"id": "groq/llama-3.1-8b-instant", "provider": "Groq", "label": "Llama 3.1 8B · fastest"},
+        ]
+    if settings.GEMINI_API_KEY:
+        models += [
+            {"id": "gemini/gemini-2.5-flash", "provider": "Gemini", "label": "Gemini 2.5 Flash"},
+            {"id": "gemini/gemini-2.5-flash-lite", "provider": "Gemini", "label": "Gemini 2.5 Flash Lite · fast"},
+        ]
+    if settings.OPENAI_API_KEY:
+        models += [
+            {"id": "openai/gpt-4o-mini", "provider": "OpenAI", "label": "GPT-4o Mini"},
+            {"id": "openai/gpt-4o", "provider": "OpenAI", "label": "GPT-4o"},
+        ]
+    if settings.ANTHROPIC_API_KEY:
+        models += [
+            {"id": "claude-sonnet-4-6", "provider": "Anthropic", "label": "Claude Sonnet 4.6"},
+            {"id": "claude-haiku-4-5-20251001", "provider": "Anthropic", "label": "Claude Haiku 4.5 · fast"},
+        ]
+    return {"models": models, "default": settings.resolved_okf_model}
+
+
 @router.post("/index/full", response_model=ReindexResponse)
-async def trigger_full_index(arq=Depends(get_arq_pool), _: CurrentUser = Depends(get_current_user)):
+async def trigger_full_index(
+    body: IndexRequest = IndexRequest(),
+    arq=Depends(get_arq_pool),
+    _: CurrentUser = Depends(get_current_user),
+):
     job_id = str(uuid.uuid4())
-    await arq.enqueue_job("discover_projects")
+    await arq.enqueue_job("discover_projects", model=body.model)
     return ReindexResponse(
         job_id=job_id,
         status="queued",
@@ -92,9 +128,13 @@ async def trigger_full_index(arq=Depends(get_arq_pool), _: CurrentUser = Depends
 
 
 @router.post("/index/discovery", response_model=ReindexResponse)
-async def trigger_discovery(arq=Depends(get_arq_pool), _: CurrentUser = Depends(get_current_user)):
+async def trigger_discovery(
+    body: IndexRequest = IndexRequest(),
+    arq=Depends(get_arq_pool),
+    _: CurrentUser = Depends(get_current_user),
+):
     job_id = str(uuid.uuid4())
-    await arq.enqueue_job("discover_projects")
+    await arq.enqueue_job("discover_projects", model=body.model)
     return ReindexResponse(
         job_id=job_id,
         status="queued",

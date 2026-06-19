@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useState, use } from "react";
 import { api } from "@/lib/api";
 import { SyncAuthModal } from "@/components/SyncAuthModal";
+import { ModelSelector } from "@/components/ModelSelector";
 import Link from "next/link";
 
 const TABS = ["Overview", "Documents", "OKF"] as const;
@@ -12,6 +13,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ slug: 
   const { slug } = use(params);
   const [tab, setTab] = useState<Tab>("Overview");
   const [expandedDoc, setExpandedDoc] = useState<string | null>(null);
+  const [selectedModel, setSelectedModel] = useState("");
 
   const { data: project, isLoading } = useQuery({
     queryKey: ["project", slug],
@@ -68,18 +70,21 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ slug: 
             </div>
           </div>
 
-          <SyncAuthModal onConfirm={() => api.reindexProject(slug).then(() => alert("Re-index queued!"))}>
-            {(trigger, disabled, reason) => (
-              <button
-                onClick={trigger}
-                disabled={disabled}
-                title={reason ?? undefined}
-                className="px-4 py-2 text-xs font-semibold bg-accent text-white border-0 cursor-pointer hover:opacity-90 transition-opacity shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                ↺ Re-index
-              </button>
-            )}
-          </SyncAuthModal>
+          <div className="flex items-center gap-2 shrink-0">
+            <ModelSelector value={selectedModel} onChange={setSelectedModel} />
+            <SyncAuthModal onConfirm={() => api.reindexProject(slug, selectedModel || undefined).then(() => alert("Re-index queued!"))}>
+              {(trigger, disabled, reason) => (
+                <button
+                  onClick={trigger}
+                  disabled={disabled}
+                  title={reason ?? undefined}
+                  className="px-4 py-2 text-xs font-semibold bg-accent text-white border-0 cursor-pointer hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  ↺ Re-index
+                </button>
+              )}
+            </SyncAuthModal>
+          </div>
         </div>
 
         <div className="mt-4 flex flex-wrap gap-x-6 gap-y-2 text-xs text-muted">
@@ -232,18 +237,21 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ slug: 
               <div className="text-4xl mb-4">📄</div>
               <div className="text-text font-semibold mb-2">No OKF generated yet</div>
               <div className="text-muted text-sm mb-5">Trigger a re-index to generate the Operational Knowledge File using AI.</div>
-              <SyncAuthModal onConfirm={() => api.reindexProject(slug).then(() => alert("Re-index queued!"))}>
-                {(trigger, disabled, reason) => (
-                  <button
-                    onClick={trigger}
-                    disabled={disabled}
-                    title={reason ?? undefined}
-                    className="px-5 py-2 bg-accent text-white text-sm font-semibold border-0 cursor-pointer hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
-                  >
-                    ↺ Trigger re-index
-                  </button>
-                )}
-              </SyncAuthModal>
+              <div className="flex items-center gap-2 justify-center">
+                <ModelSelector value={selectedModel} onChange={setSelectedModel} />
+                <SyncAuthModal onConfirm={() => api.reindexProject(slug, selectedModel || undefined).then(() => alert("Re-index queued!"))}>
+                  {(trigger, disabled, reason) => (
+                    <button
+                      onClick={trigger}
+                      disabled={disabled}
+                      title={reason ?? undefined}
+                      className="px-5 py-2 bg-accent text-white text-sm font-semibold border-0 cursor-pointer hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      ↺ Trigger re-index
+                    </button>
+                  )}
+                </SyncAuthModal>
+              </div>
             </div>
           ) : (
             <div>

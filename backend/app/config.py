@@ -20,9 +20,56 @@ class Settings(BaseSettings):
     GROQ_API_KEY: str = ""
     LITELLM_BASE_URL: str = ""
 
-    OKF_MODEL: str = "claude-sonnet-4-6"
-    EMBEDDING_MODEL: str = "text-embedding-3-small"
-    SUMMARY_MODEL: str = "groq/llama-3.1-8b-instant"
+    OKF_MODEL: str = ""
+    EMBEDDING_MODEL: str = ""
+    SUMMARY_MODEL: str = ""
+
+    @property
+    def has_any_llm_key(self) -> bool:
+        return bool(
+            self.GROQ_API_KEY
+            or self.GEMINI_API_KEY
+            or self.OPENAI_API_KEY
+            or self.ANTHROPIC_API_KEY
+        )
+
+    @property
+    def resolved_okf_model(self) -> str:
+        if self.OKF_MODEL:
+            return self.OKF_MODEL
+        if self.GROQ_API_KEY:
+            return "groq/llama-3.3-70b-versatile"
+        if self.GEMINI_API_KEY:
+            return "gemini/gemini-2.5-flash"
+        if self.OPENAI_API_KEY:
+            return "openai/gpt-4o-mini"
+        if self.ANTHROPIC_API_KEY:
+            return "claude-sonnet-4-6"
+        return ""
+
+    @property
+    def resolved_summary_model(self) -> str:
+        if self.SUMMARY_MODEL:
+            return self.SUMMARY_MODEL
+        if self.GROQ_API_KEY:
+            return "groq/llama-3.1-8b-instant"
+        if self.GEMINI_API_KEY:
+            return "gemini/gemini-2.5-flash-lite"
+        if self.OPENAI_API_KEY:
+            return "openai/gpt-4o-mini"
+        if self.ANTHROPIC_API_KEY:
+            return "claude-haiku-4-5-20251001"
+        return ""
+
+    @property
+    def resolved_embedding_model(self) -> str:
+        if self.EMBEDDING_MODEL:
+            return self.EMBEDDING_MODEL
+        if self.GEMINI_API_KEY:
+            return "gemini/text-embedding-004"
+        if self.OPENAI_API_KEY:
+            return "text-embedding-3-small"
+        return ""
 
     SCAN_DIRECTORIES: str = "/home/shashank/project,/home/shashank/projects"
     IGNORE_DIRS: List[str] = [

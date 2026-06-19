@@ -1,7 +1,9 @@
 "use client";
 import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import { api } from "@/lib/api";
 import { SyncAuthModal } from "@/components/SyncAuthModal";
+import { ModelSelector } from "@/components/ModelSelector";
 import Link from "next/link";
 
 const LANG_COLORS: Record<string, string> = {
@@ -92,6 +94,8 @@ const STAT_META = [
 ];
 
 export default function DashboardPage() {
+  const [selectedModel, setSelectedModel] = useState("");
+
   const { data: stats, isLoading: statsLoading } = useQuery({
     queryKey: ["stats"],
     queryFn: api.getStats,
@@ -205,19 +209,22 @@ export default function DashboardPage() {
               )}
           </div>
 
-          <SyncAuthModal onConfirm={() => api.triggerFullIndex()}>
-            {(trigger, disabled, reason) => (
-              <button
-                onClick={trigger}
-                disabled={disabled}
-                title={reason ?? undefined}
-                className="mt-5 w-full py-2.5 text-xs font-semibold text-white transition-opacity border-0 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90"
-                style={{ background: "linear-gradient(to right, #4589ff, #0f62fe)" }}
-              >
-                Trigger Full Re-index
-              </button>
-            )}
-          </SyncAuthModal>
+          <div className="mt-5 flex flex-col gap-2">
+            <ModelSelector value={selectedModel} onChange={setSelectedModel} />
+            <SyncAuthModal onConfirm={() => api.triggerFullIndex(selectedModel || undefined)}>
+              {(trigger, disabled, reason) => (
+                <button
+                  onClick={trigger}
+                  disabled={disabled}
+                  title={reason ?? undefined}
+                  className="w-full py-2.5 text-xs font-semibold text-white transition-opacity border-0 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90"
+                  style={{ background: "linear-gradient(to right, #4589ff, #0f62fe)" }}
+                >
+                  Trigger Full Re-index
+                </button>
+              )}
+            </SyncAuthModal>
+          </div>
         </div>
       </div>
 

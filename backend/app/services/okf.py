@@ -70,7 +70,7 @@ class OKFService:
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
 
-    async def generate(self, project: Project) -> str | None:
+    async def generate(self, project: Project, model: str | None = None) -> str | None:
         if project.okf_overridden:
             return None
 
@@ -91,7 +91,7 @@ class OKFService:
         if existing_okf and existing_okf.content_hash == context_hash:
             return existing_okf.content
 
-        content = await self._call_llm(project, context)
+        content = await self._call_llm(project, context, model=model)
         if not content:
             return None
 
@@ -118,9 +118,14 @@ class OKFService:
 
         return "\n\n".join(parts[:10])  # cap at 10 docs
 
-    async def _call_llm(self, project: Project, context: str) -> str | None:
-        if not settings.ANTHROPIC_API_KEY and not settings.OPENAI_API_KEY and not settings.GEMINI_API_KEY:
+    async def _call_llm(self, project: Project, context: str, model: str | None = None) -> str | None:
+        if not settings.has_any_llm_key:
             logger.info("okf_llm_unavailable_generating_placeholder", project=project.slug)
+            return self._generate_placeholder(project)
+
+        model = model or settings.resolved_okf_model
+        if not model:
+            logger.warning("okf_no_model_resolved", project=project.slug)
             return self._generate_placeholder(project)
 
         try:
@@ -133,8 +138,9 @@ class OKFService:
                 git_url=project.git_url or "none",
                 documents=context,
             )
+            logger.info("okf_calling_llm", project=project.slug, model=model)
             response = await litellm.acompletion(
-                model=settings.OKF_MODEL,
+                model=model,
                 messages=[
                     {"role": "system", "content": OKF_SYSTEM},
                     {"role": "user", "content": prompt},
@@ -145,7 +151,7 @@ class OKFService:
             )
             return response.choices[0].message.content
         except Exception as e:
-            logger.warning("okf_generation_failed", project=project.slug, error=str(e))
+            logger.warning("okf_generation_failed", project=project.slug, model=model, error=str(e))
             return self._generate_placeholder(project)
 
     def _generate_placeholder(self, project: Project) -> str:

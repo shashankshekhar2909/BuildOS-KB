@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from app.api.deps import get_db, get_arq_pool, get_current_user
@@ -156,9 +157,14 @@ async def get_project_okf(slug: str, db: AsyncSession = Depends(get_db)):
     }
 
 
+class ReindexRequest(BaseModel):
+    model: str | None = None
+
+
 @router.post("/{slug}/reindex", response_model=ReindexResponse)
 async def reindex_project(
     slug: str,
+    body: ReindexRequest = ReindexRequest(),
     db: AsyncSession = Depends(get_db),
     arq=Depends(get_arq_pool),
     _: CurrentUser = Depends(get_current_user),
@@ -170,7 +176,7 @@ async def reindex_project(
         raise HTTPException(status_code=404, detail=f"Project '{slug}' not found")
 
     job_id = str(uuid.uuid4())
-    await arq.enqueue_job("extract_project", project_id=str(project.id))
+    await arq.enqueue_job("extract_project", project_id=str(project.id), model=body.model)
 
     return ReindexResponse(
         job_id=job_id,

@@ -57,8 +57,11 @@ export const api = {
   getProjectDocuments: (slug: string) =>
     fetchJSON<DocumentListOut>(`/api/projects/${slug}/documents`),
 
-  reindexProject: (slug: string) =>
-    fetchJSON<ReindexResponse>(`/api/projects/${slug}/reindex`, { method: "POST" }),
+  reindexProject: (slug: string, model?: string) =>
+    fetchJSON<ReindexResponse>(`/api/projects/${slug}/reindex`, {
+      method: "POST",
+      body: JSON.stringify({ model: model ?? null }),
+    }),
 
   search: (query: string, params?: Record<string, string | undefined>) => {
     const qs = new URLSearchParams({ q: query, ...params }).toString();
@@ -67,8 +70,12 @@ export const api = {
 
   getStats: () => fetchJSON<Stats>(`/api/admin/stats`),
   getHealth: () => fetchJSON<Health>(`/api/admin/health`),
-  triggerFullIndex: () =>
-    fetchJSON<ReindexResponse>(`/api/admin/index/full`, { method: "POST" }),
+  getAvailableModels: () => fetchJSON<ModelsResponse>(`/api/admin/models`),
+  triggerFullIndex: (model?: string) =>
+    fetchJSON<ReindexResponse>(`/api/admin/index/full`, {
+      method: "POST",
+      body: JSON.stringify({ model: model ?? null }),
+    }),
 };
 
 // Types
@@ -150,4 +157,15 @@ export interface ReindexResponse {
   job_id: string;
   status: string;
   message: string;
+}
+
+export interface ModelOption {
+  id: string;
+  provider: string;
+  label: string;
+}
+
+export interface ModelsResponse {
+  models: ModelOption[];
+  default: string;
 }

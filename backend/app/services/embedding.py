@@ -49,29 +49,27 @@ class EmbeddingService:
         return chunks
 
     async def embed_text(self, text: str) -> list[float] | None:
-        if not settings.OPENAI_API_KEY and not settings.ANTHROPIC_API_KEY:
+        model = settings.resolved_embedding_model
+        if not model:
             return None
         try:
             import litellm
-            response = await litellm.aembedding(
-                model=settings.EMBEDDING_MODEL,
-                input=[text],
-            )
+            response = await litellm.aembedding(model=model, input=[text])
             return response.data[0]["embedding"]
         except Exception as e:
-            logger.debug("embedding_failed", error=str(e))
+            logger.debug("embedding_failed", model=model, error=str(e))
             return None
 
     async def embed_batch(self, texts: list[str]) -> list[list[float]]:
         if not texts:
             return []
+        model = settings.resolved_embedding_model
+        if not model:
+            return [[] for _ in texts]
         try:
             import litellm
-            response = await litellm.aembedding(
-                model=settings.EMBEDDING_MODEL,
-                input=texts,
-            )
+            response = await litellm.aembedding(model=model, input=texts)
             return [item["embedding"] for item in response.data]
         except Exception as e:
-            logger.warning("embed_batch_failed", error=str(e))
+            logger.warning("embed_batch_failed", model=model, error=str(e))
             return [[] for _ in texts]

@@ -24,8 +24,8 @@ async def _dedup_enqueue(redis, fn_name: str, **kwargs) -> bool:
     return False
 
 
-async def discover_projects(ctx: dict) -> dict:
-    logger.info("discover_projects_start")
+async def discover_projects(ctx: dict, model: str | None = None) -> dict:
+    logger.info("discover_projects_start", model=model)
     redis = ctx["redis"]
 
     async with AsyncSessionLocal() as db:
@@ -38,17 +38,17 @@ async def discover_projects(ctx: dict) -> dict:
             project, is_new = await service.upsert_project(candidate)
             found += 1
             if is_new or await service.has_changes_since(project):
-                enqueued = await _dedup_enqueue(redis, "extract_project", project_id=str(project.id))
+                enqueued = await _dedup_enqueue(redis, "extract_project", project_id=str(project.id), model=model)
                 if enqueued:
                     queued += 1
         await db.commit()
 
-    logger.info("discover_projects_done", found=found, queued=queued)
+    logger.info("discover_projects_done", found=found, queued=queued, model=model)
     return {"projects_found": found, "projects_queued": queued}
 
 
-async def extract_project(ctx: dict, project_id: str) -> dict:
-    logger.info("extract_project_start", project_id=project_id)
+async def extract_project(ctx: dict, project_id: str, model: str | None = None) -> dict:
+    logger.info("extract_project_start", project_id=project_id, model=model)
     redis = ctx["redis"]
 
     async with AsyncSessionLocal() as db:
@@ -66,8 +66,7 @@ async def extract_project(ctx: dict, project_id: str) -> dict:
         await db.commit()
 
     if changed > 0:
-        await _dedup_enqueue(redis, "generate_okf", project_id=project_id)
-        # Queue embedding for changed documents
+        await _dedup_enqueue(redis, "generate_okf", project_id=project_id, model=model)
         async with AsyncSessionLocal() as db:
             stmt = select(Document).where(Document.project_id == UUID(project_id))
             result = await db.execute(stmt)
@@ -79,8 +78,8 @@ async def extract_project(ctx: dict, project_id: str) -> dict:
     return {"processed": processed, "changed": changed}
 
 
-async def generate_okf(ctx: dict, project_id: str) -> dict:
-    logger.info("generate_okf_start", project_id=project_id)
+async def generate_okf(ctx: dict, project_id: str, model: str | None = None) -> dict:
+    logger.info("generate_okf_start", project_id=project_id, model=model)
 
     async with AsyncSessionLocal() as db:
         stmt = select(Project).where(Project.id == UUID(project_id))
@@ -91,11 +90,11 @@ async def generate_okf(ctx: dict, project_id: str) -> dict:
             return {"error": "project_not_found"}
 
         service = OKFService(db)
-        content = await service.generate(project)
+        content = await service.generate(project, model=model)
         await db.commit()
 
     status = "generated" if content else "skipped"
-    logger.info("generate_okf_done", project_id=project_id, status=status)
+    logger.info("generate_okf_done", project_id=project_id, status=status, model=model)
     return {"status": status}
 
 
